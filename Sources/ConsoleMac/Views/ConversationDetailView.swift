@@ -2,15 +2,22 @@ import SwiftUI
 
 struct ConversationDetailView: View {
     @ObservedObject var store: ConsoleStore
+    @Binding var showCommandPalette: Bool
+    @Binding var showShortcutsSheet: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            TopBarView(store: store)
+            TopBarView(
+                store: store,
+                showCommandPalette: $showCommandPalette,
+                showShortcutsSheet: $showShortcutsSheet
+            )
 
             Divider()
 
             if store.selectedConversation != nil {
                 MessagesView(store: store)
+                    .transition(.opacity)
             } else {
                 EmptyConversationView()
             }
@@ -18,6 +25,7 @@ struct ConversationDetailView: View {
             ComposerView(store: store)
         }
         .background(Theme.windowBackground)
+        .animation(.easeOut(duration: 0.18), value: store.selectedConversation?.id)
     }
 }
 

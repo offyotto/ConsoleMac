@@ -26,36 +26,75 @@ struct OnboardingView: View {
                     switch step {
                     case .identity:
                         IdentityStep(preferences: $preferences)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
                     case .preferences:
                         PreferenceStep(preferences: $preferences)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
                     case .instructions:
                         InstructionsStep(preferences: $preferences)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(28)
+                .animation(.spring(response: 0.42, dampingFraction: 0.86), value: step)
 
                 Divider()
 
                 footer
             }
-            .frame(width: 520, height: 480)
+            .frame(width: 520, height: 500)
             .background(Theme.windowBackground)
         }
-        .frame(width: 720, height: 480)
+        .frame(width: 720, height: 500)
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 10) {
-                TerminalIconView(size: 26)
-                    .foregroundStyle(.primary)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8).fill(Theme.subtleFill)
+                        .frame(width: 34, height: 34)
+                    TerminalIconView(size: 20)
+                        .foregroundStyle(Theme.brandGradient)
+                }
 
-                Text("Console")
-                    .font(Typography.interface(16, .bold))
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Console")
+                        .font(Typography.interface(16, .bold))
+                    Text("Welcome")
+                        .font(Typography.interface(11))
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            // Step progress
+            VStack(alignment: .leading, spacing: 6) {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.subtleFill).frame(height: 4)
+                        Capsule()
+                            .fill(Theme.accentGradient)
+                            .frame(width: progressWidth(in: proxy.size.width), height: 4)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: step)
+                    }
+                }
+                .frame(height: 4)
+                Text("Step \(step.rawValue + 1) of \(OnboardingStep.allCases.count)")
+                    .font(Typography.interface(10, .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(OnboardingStep.allCases) { item in
                     OnboardingStepRow(
                         step: item,
@@ -64,7 +103,9 @@ struct OnboardingView: View {
                     )
                     .onTapGesture {
                         if item.rawValue <= step.rawValue || canContinue {
-                            step = item
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                                step = item
+                            }
                         }
                     }
                 }
@@ -86,9 +127,12 @@ struct OnboardingView: View {
     private var footer: some View {
         HStack {
             Button("Back") {
-                step = OnboardingStep(rawValue: step.rawValue - 1) ?? .identity
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                    step = OnboardingStep(rawValue: step.rawValue - 1) ?? .identity
+                }
             }
             .disabled(step == .identity)
+            .keyboardShortcut(.leftArrow, modifiers: [.command])
 
             Spacer()
 
@@ -97,22 +141,36 @@ struct OnboardingView: View {
                     store.completeOnboarding(preferences)
                 } label: {
                     Label("Start Using Console", systemImage: "checkmark")
+                        .padding(.horizontal, 4)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(!canContinue)
+                .keyboardShortcut(.return, modifiers: [.command])
             } else {
                 Button {
-                    step = OnboardingStep(rawValue: step.rawValue + 1) ?? .instructions
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                        step = OnboardingStep(rawValue: step.rawValue + 1) ?? .instructions
+                    }
                 } label: {
                     Label("Continue", systemImage: "arrow.right")
+                        .padding(.horizontal, 4)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(!canContinue)
+                .keyboardShortcut(.return, modifiers: [.command])
             }
         }
         .padding(.horizontal, 24)
         .frame(height: 62)
         .background(.bar)
+    }
+
+    private func progressWidth(in totalWidth: CGFloat) -> CGFloat {
+        let total = max(1, OnboardingStep.allCases.count - 1)
+        let fraction = CGFloat(step.rawValue) / CGFloat(total)
+        return max(20, totalWidth * fraction)
     }
 }
 

@@ -9,9 +9,10 @@ struct ConsoleMacApp: App {
     var body: some Scene {
         WindowGroup("Console", id: "main") {
             ContentView(store: store)
-                .frame(minWidth: 900, minHeight: 620)
+                .frame(minWidth: 920, minHeight: 640)
+                .preferredColorScheme(nil)
         }
-        .defaultSize(width: 1060, height: 720)
+        .defaultSize(width: 1080, height: 740)
         .commands {
             ConsoleCommands(store: store)
         }
@@ -47,13 +48,21 @@ struct ConsoleCommands: Commands {
             .keyboardShortcut(.return, modifiers: [.command])
             .disabled(!store.canSendDraft)
 
+            Button("Stop Generating") {
+                store.requestStopGeneration()
+            }
+            .keyboardShortcut(".", modifiers: [.command])
+            .disabled(!store.isGeneratingResponse)
+
+            Divider()
+
             Button("Copy Conversation") {
                 store.copySelectedConversation()
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(!store.canExportSelectedConversation)
 
-            Button("Export Transcript...") {
+            Button("Export Transcript…") {
                 store.exportSelectedConversation()
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -61,10 +70,18 @@ struct ConsoleCommands: Commands {
 
             Divider()
 
-            Button("Add Search Files...") {
+            Button("Add Search Files…") {
                 store.addSearchResourcesFromOpenPanel()
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
+        }
+
+        CommandGroup(replacing: .help) {
+            Button("ConsoleMac Help") {
+                if let url = URL(string: "https://github.com/") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 }
