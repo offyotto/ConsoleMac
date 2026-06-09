@@ -6,6 +6,7 @@ struct ContentView: View {
 
     @State private var showCommandPalette = false
     @State private var showShortcutsSheet = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationSplitView {
@@ -15,22 +16,33 @@ struct ContentView: View {
             detailView
         }
         .navigationSplitViewStyle(.balanced)
+        .environment(\.openConsoleSettings) {
+            showSettings = true
+        }
         .overlay { ToastOverlay() }
         .overlay { commandPaletteOverlay }
         .sheet(isPresented: onboardingBinding) {
             OnboardingView(store: store)
                 .interactiveDismissDisabled()
         }
+        .sheet(isPresented: $showSettings) {
+            ConsoleSettingsView(store: store)
+                .frame(minWidth: 760, idealWidth: 820, minHeight: 560, idealHeight: 640)
+        }
         .sheet(isPresented: $showShortcutsSheet) {
             KeyboardShortcutsView(isPresented: $showShortcutsSheet)
         }
         .background(
-            // Off-screen button to surface the ⌘/ shortcut globally.
-            Button("") { showShortcutsSheet.toggle() }
-                .keyboardShortcut("/", modifiers: [.command])
-                .opacity(0)
-                .frame(width: 0, height: 0)
-                .accessibilityHidden(true)
+            VStack {
+                // Off-screen buttons to surface app-wide shortcuts.
+                Button("") { showShortcutsSheet.toggle() }
+                    .keyboardShortcut("/", modifiers: [.command])
+                Button("") { showSettings = true }
+                    .keyboardShortcut(",", modifiers: [.command])
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         )
     }
 
@@ -86,6 +98,7 @@ struct ContentView: View {
 
 struct ConversationHomeView: View {
     @ObservedObject var store: ConsoleStore
+    @Environment(\.openConsoleSettings) private var openConsoleSettings
 
     var body: some View {
         ZStack {
@@ -108,7 +121,7 @@ struct ConversationHomeView: View {
                 VStack(spacing: 28) {
                     Spacer(minLength: 30)
 
-                    GreetingCard(store: store)
+                    GreetingCard(store: store, openSettings: openConsoleSettings)
 
                     if store.canCompose {
                         QuickPromptsCard(store: store)
@@ -130,6 +143,7 @@ struct ConversationHomeView: View {
 
 private struct GreetingCard: View {
     @ObservedObject var store: ConsoleStore
+    let openSettings: () -> Void
     @State private var bob = false
 
     var body: some View {
@@ -175,7 +189,7 @@ private struct GreetingCard: View {
                     .keyboardShortcut("n", modifiers: [.command])
                 } else if store.preferences.apiAgentModeEnabled {
                     Button {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                        openSettings()
                     } label: {
                         Label("Open Settings", systemImage: "key")
                             .padding(.horizontal, 4)

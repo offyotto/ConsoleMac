@@ -5,6 +5,7 @@ struct TopBarView: View {
     @ObservedObject var store: ConsoleStore
     @Binding var showCommandPalette: Bool
     @Binding var showShortcutsSheet: Bool
+    @Environment(\.openConsoleSettings) private var openConsoleSettings
 
     var body: some View {
         HStack(spacing: 12) {
@@ -140,7 +141,7 @@ struct TopBarView: View {
             Divider()
             Button(store.preferences.apiAgentModeEnabled ? "API Settings…" : "Use API Agent Mode…") {
                 store.updatePreferences { $0.apiAgentModeEnabled = true }
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                openConsoleSettings()
             }
             Button("Manage Models…") { store.showModels() }
         } label: {

@@ -3,6 +3,7 @@ import Foundation
 enum ConsoleResources {
     static func url(forResource name: String, withExtension extensionName: String, subdirectory: String? = nil) -> URL? {
         bundle.url(forResource: name, withExtension: extensionName, subdirectory: subdirectory)
+            ?? bundle.url(forResource: name, withExtension: extensionName)
     }
 
     private static let bundleName = "ConsoleMac_ConsoleMac.bundle"

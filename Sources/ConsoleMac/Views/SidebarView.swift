@@ -2,13 +2,14 @@ import SwiftUI
 
 struct SidebarView: View {
     @ObservedObject var store: ConsoleStore
+    @Environment(\.openConsoleSettings) private var openConsoleSettings
     @State private var searchText: String = ""
     @State private var renamingID: UUID? = nil
     @State private var renameDraft: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            SidebarHeader(canCreateConversation: store.canCompose) {
+            SidebarHeader(canCreateConversation: true) {
                 store.createConversation()
             }
 
@@ -60,7 +61,11 @@ struct SidebarView: View {
 
             Divider()
 
-            UserFooter(name: store.preferences.displayUserName, initials: store.preferences.userInitials)
+            UserFooter(
+                name: store.preferences.displayUserName,
+                initials: store.preferences.userInitials,
+                openSettings: openConsoleSettings
+            )
         }
         .background(.regularMaterial)
     }
@@ -349,14 +354,10 @@ private struct BrandMark: View {
     @Binding var iconBob: Bool
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Theme.subtleFill)
-                .frame(width: 30, height: 30)
-            TerminalIconView(size: 18)
-                .foregroundStyle(Theme.brandGradient)
-                .offset(y: iconBob ? -0.5 : 0.5)
-        }
+        TerminalIconView(size: 25)
+            .foregroundStyle(.primary)
+            .frame(width: 30, height: 30)
+            .offset(y: iconBob ? -0.5 : 0.5)
     }
 }
 
@@ -452,6 +453,7 @@ private struct ConversationRow: View {
 private struct UserFooter: View {
     let name: String
     let initials: String
+    let openSettings: () -> Void
 
     var body: some View {
         HStack(spacing: 9) {
@@ -477,9 +479,7 @@ private struct UserFooter: View {
 
             Spacer()
 
-            Button {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            } label: {
+            Button(action: openSettings) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)

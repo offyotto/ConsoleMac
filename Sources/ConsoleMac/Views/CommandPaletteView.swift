@@ -6,6 +6,7 @@ import SwiftUI
 struct CommandPaletteView: View {
     @ObservedObject var store: ConsoleStore
     @Binding var isPresented: Bool
+    @Environment(\.openConsoleSettings) private var openConsoleSettings
 
     @State private var query: String = ""
     @State private var selectionIndex: Int = 0
@@ -47,7 +48,7 @@ struct CommandPaletteView: View {
             icon: "gearshape",
             title: "Open Settings",
             subtitle: nil, shortcut: "⌘,", group: "Navigation",
-            action: { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) }
+            action: openConsoleSettings
         ))
         commands.append(PaletteCommand(
             icon: "folder.badge.plus",

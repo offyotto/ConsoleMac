@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ComposerView: View {
     @ObservedObject var store: ConsoleStore
+    @Environment(\.openConsoleSettings) private var openConsoleSettings
     @FocusState private var isFocused: Bool
     @State private var isDropTargeted: Bool = false
 
@@ -18,7 +19,7 @@ struct ComposerView: View {
                         Label("Add Files or Folders…", systemImage: "folder.badge.plus")
                     }
                     Button {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                        openConsoleSettings()
                     } label: {
                         Label("Manage Search Resources…", systemImage: "slider.horizontal.3")
                     }
