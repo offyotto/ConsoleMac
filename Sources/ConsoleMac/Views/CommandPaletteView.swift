@@ -126,6 +126,8 @@ struct CommandPaletteView: View {
     }
 
     var body: some View {
+        let commands = filteredCommands
+
         VStack(spacing: 0) {
             HStack(spacing: 9) {
                 Image(systemName: "magnifyingglass")
@@ -137,14 +139,16 @@ struct CommandPaletteView: View {
                     .focused($fieldFocused)
                     .onSubmit(runSelected)
                     .onExitCommand { isPresented = false }
-                    .onChange(of: query) { _, _ in selectionIndex = 0 }
+                    .onChange(of: query) { _, _ in
+                        selectionIndex = 0
+                    }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 13)
 
             Divider()
 
-            if filteredCommands.isEmpty {
+            if commands.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 26, weight: .light))
@@ -159,26 +163,31 @@ struct CommandPaletteView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 1) {
-                            ForEach(Array(filteredCommands.enumerated()), id: \.element.id) { index, command in
+                            ForEach(Array(commands.enumerated()), id: \.element.id) { index, command in
                                 CommandRow(
                                     command: command,
                                     isSelected: index == selectionIndex
                                 ) {
                                     runCommand(command)
                                 }
-                                .id(index)
-                                .onHover { hovering in
-                                    if hovering { selectionIndex = index }
-                                }
+                                .id(command.id)
                             }
                         }
                         .padding(6)
                     }
                     .frame(maxHeight: 360)
                     .onChange(of: selectionIndex) { _, newValue in
-                        withAnimation(.easeOut(duration: 0.08)) {
-                            proxy.scrollTo(newValue, anchor: .center)
+                        scrollToSelection(newValue, in: commands, proxy: proxy)
+                    }
+                    .onChange(of: commands.map(\.id)) { _, nextIDs in
+                        selectionIndex = 0
+                        guard let firstID = nextIDs.first else { return }
+                        DispatchQueue.main.async {
+                            proxy.scrollTo(firstID, anchor: .top)
                         }
+                    }
+                    .onAppear {
+                        scrollToSelection(selectionIndex, in: commands, proxy: proxy, animated: false)
                     }
                 }
             }
@@ -190,7 +199,7 @@ struct CommandPaletteView: View {
                 Label("↩ Run", systemImage: "return").font(Typography.interface(10.5))
                 Label("Esc Close", systemImage: "escape").font(Typography.interface(10.5))
                 Spacer()
-                Text("\(filteredCommands.count) result\(filteredCommands.count == 1 ? "" : "s")")
+                Text("\(commands.count) result\(commands.count == 1 ? "" : "s")")
                     .font(Typography.interface(10.5).monospacedDigit())
             }
             .foregroundStyle(.secondary)
@@ -207,8 +216,10 @@ struct CommandPaletteView: View {
         )
         .shadow(color: Color.black.opacity(0.25), radius: 30, x: 0, y: 12)
         .onAppear {
-            fieldFocused = true
             selectionIndex = 0
+            DispatchQueue.main.async {
+                fieldFocused = true
+            }
         }
         .background(KeyEventHandlingView { event in
             handleKey(event)
@@ -223,19 +234,41 @@ struct CommandPaletteView: View {
     }
 
     private func runSelected() {
-        guard !filteredCommands.isEmpty,
-              filteredCommands.indices.contains(selectionIndex) else { return }
-        runCommand(filteredCommands[selectionIndex])
+        let commands = filteredCommands
+        guard !commands.isEmpty else { return }
+        runCommand(commands[clampedSelectionIndex(in: commands)])
     }
 
     private func handleKey(_ event: NSEvent) -> NSEvent? {
         guard isPresented else { return event }
+        let commands = filteredCommands
+
         switch event.keyCode {
         case 125: // down
-            selectionIndex = min(filteredCommands.count - 1, selectionIndex + 1)
+            guard !commands.isEmpty else { return nil }
+            selectionIndex = min(commands.count - 1, selectionIndex + 1)
             return nil
         case 126: // up
+            guard !commands.isEmpty else { return nil }
             selectionIndex = max(0, selectionIndex - 1)
+            return nil
+        case 121: // page down
+            guard !commands.isEmpty else { return nil }
+            selectionIndex = min(commands.count - 1, selectionIndex + 8)
+            return nil
+        case 116: // page up
+            guard !commands.isEmpty else { return nil }
+            selectionIndex = max(0, selectionIndex - 8)
+            return nil
+        case 119: // end
+            guard !commands.isEmpty else { return nil }
+            selectionIndex = commands.count - 1
+            return nil
+        case 115: // home
+            selectionIndex = 0
+            return nil
+        case 36, 76: // return / enter
+            runSelected()
             return nil
         case 53: // escape
             isPresented = false
@@ -244,18 +277,59 @@ struct CommandPaletteView: View {
             return event
         }
     }
+
+    private func clampedSelectionIndex(in commands: [PaletteCommand]) -> Int {
+        min(max(selectionIndex, 0), max(commands.count - 1, 0))
+    }
+
+    private func scrollToSelection(
+        _ index: Int,
+        in commands: [PaletteCommand],
+        proxy: ScrollViewProxy,
+        animated: Bool = true
+    ) {
+        guard commands.isEmpty == false else { return }
+        let clampedIndex = min(max(index, 0), commands.count - 1)
+        let id = commands[clampedIndex].id
+        DispatchQueue.main.async {
+            if animated {
+                withAnimation(.easeOut(duration: 0.10)) {
+                    proxy.scrollTo(id, anchor: .center)
+                }
+            } else {
+                proxy.scrollTo(id, anchor: .center)
+            }
+        }
+    }
 }
 
 // MARK: - Row
 
 private struct PaletteCommand: Identifiable, Hashable {
-    let id = UUID()
+    let id: String
     let icon: String
     let title: String
     let subtitle: String?
     let shortcut: String?
     let group: String
     let action: () -> Void
+
+    init(
+        icon: String,
+        title: String,
+        subtitle: String?,
+        shortcut: String?,
+        group: String,
+        action: @escaping () -> Void
+    ) {
+        self.id = "\(group)|\(title)"
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.shortcut = shortcut
+        self.group = group
+        self.action = action
+    }
 
     static func == (lhs: PaletteCommand, rhs: PaletteCommand) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -265,6 +339,8 @@ private struct CommandRow: View {
     let command: PaletteCommand
     let isSelected: Bool
     let action: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
@@ -314,12 +390,21 @@ private struct CommandRow: View {
         .buttonStyle(.plain)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Theme.accent.opacity(0.14) : Color.clear)
+                .fill(rowFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isSelected ? Theme.accent.opacity(0.3) : Color.clear, lineWidth: 1)
         )
+        .onHover { isHovering = $0 }
+        .animation(Theme.Motion.hover, value: isHovering)
+    }
+
+    private var rowFill: Color {
+        if isSelected {
+            return Theme.accent.opacity(0.14)
+        }
+        return isHovering ? Theme.hoverFill : Color.clear
     }
 }
 

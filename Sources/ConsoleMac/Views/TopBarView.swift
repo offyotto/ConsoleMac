@@ -30,7 +30,6 @@ struct TopBarView: View {
                 .background(Capsule().fill(Theme.subtleFill))
             }
             .buttonStyle(PressableButtonStyle())
-            .keyboardShortcut("k", modifiers: [.command])
             .help("Quick switch (⌘K)")
 
             Button {

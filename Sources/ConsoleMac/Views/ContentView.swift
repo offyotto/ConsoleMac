@@ -32,9 +32,14 @@ struct ContentView: View {
         .sheet(isPresented: $showShortcutsSheet) {
             KeyboardShortcutsView(isPresented: $showShortcutsSheet)
         }
+        .onChange(of: store.commandPaletteRequestID) { _, _ in
+            showCommandPalette = true
+        }
         .background(
             VStack {
                 // Off-screen buttons to surface app-wide shortcuts.
+                Button("") { showCommandPalette = true }
+                    .keyboardShortcut("k", modifiers: [.command])
                 Button("") { showShortcutsSheet.toggle() }
                     .keyboardShortcut("/", modifiers: [.command])
                 Button("") { showSettings = true }
@@ -78,6 +83,9 @@ struct ContentView: View {
                     .onTapGesture { showCommandPalette = false }
 
                 CommandPaletteView(store: store, isPresented: $showCommandPalette)
+                    .environment(\.openConsoleSettings) {
+                        showSettings = true
+                    }
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
                     .padding(.top, 80)
                     .frame(maxHeight: .infinity, alignment: .top)

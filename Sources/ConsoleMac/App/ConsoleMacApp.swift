@@ -39,6 +39,11 @@ struct ConsoleCommands: Commands {
                 store.createConversation()
             }
             .keyboardShortcut("n", modifiers: [.command])
+
+            Button("Command Palette…") {
+                store.requestCommandPalette()
+            }
+            .keyboardShortcut("k", modifiers: [.command])
         }
 
         CommandMenu("Conversation") {

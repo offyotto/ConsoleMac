@@ -14,6 +14,7 @@ final class ConsoleStore: ObservableObject {
     @Published private(set) var openRouterModels = OpenRouterModel.fallbackModels
     @Published private(set) var isLoadingOpenRouterModels = false
     @Published private(set) var openRouterModelsError: String?
+    @Published private(set) var commandPaletteRequestID = 0
 
     @Published var preferences: AppPreferences {
         didSet { saveState() }
@@ -177,6 +178,10 @@ final class ConsoleStore: ObservableObject {
 
     func showModels() {
         selectedItem = .models
+    }
+
+    func requestCommandPalette() {
+        commandPaletteRequestID += 1
     }
 
     func createConversation() {
