@@ -154,7 +154,7 @@ private struct ModelCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 14) {
-                ProviderLogoView(provider: model.provider, width: 104, height: 34)
+                ProviderLogoView(provider: model.provider, width: 44, height: 44)
                     .padding(.top, 1)
 
                 VStack(alignment: .leading, spacing: 5) {

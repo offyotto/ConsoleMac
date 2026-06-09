@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct ProviderLogoView: View {
@@ -7,37 +6,49 @@ struct ProviderLogoView: View {
     let height: CGFloat
 
     var body: some View {
-        Image(nsImage: ProviderLogoCache.image(for: provider))
-            .resizable()
-            .renderingMode(.template)
-            .scaledToFit()
-            .frame(width: width, height: height, alignment: .leading)
-            .foregroundStyle(.primary)
-            .accessibilityLabel(provider.displayName)
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(provider.badgeColor.opacity(0.16))
+
+            Text(provider.badgeText)
+                .font(Typography.interface(15, .bold))
+                .foregroundStyle(provider.badgeColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(width: width, height: height)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(provider.badgeColor.opacity(0.30), lineWidth: 1)
+        }
+        .accessibilityLabel(provider.displayName)
     }
 }
 
-@MainActor
-private enum ProviderLogoCache {
-    static func image(for provider: ModelProvider) -> NSImage {
-        if let cachedImage = images[provider.logoFilename] {
-            return cachedImage
+private extension ModelProvider {
+    var badgeText: String {
+        switch self {
+        case .qwen:
+            return "Q"
+        case .deepSeek:
+            return "DS"
+        case .meta:
+            return "∞"
+        case .mistral:
+            return "MI"
         }
-
-        let loadedImage = ConsoleResources.url(
-            forResource: provider.logoFilename,
-            withExtension: "svg",
-            subdirectory: "ProviderLogos"
-        )
-        .flatMap(NSImage.init(contentsOf:))
-
-        let image = loadedImage
-            ?? NSImage(systemSymbolName: "circle", accessibilityDescription: provider.displayName)
-            ?? NSImage(size: NSSize(width: 120, height: 40))
-        image.isTemplate = true
-        images[provider.logoFilename] = image
-        return image
     }
 
-    private static var images: [String: NSImage] = [:]
+    var badgeColor: Color {
+        switch self {
+        case .qwen:
+            return Color(red: 0.44, green: 0.67, blue: 1.0)
+        case .deepSeek:
+            return Color(red: 0.54, green: 0.78, blue: 0.95)
+        case .meta:
+            return Color(red: 0.50, green: 0.61, blue: 1.0)
+        case .mistral:
+            return Color(red: 1.0, green: 0.68, blue: 0.30)
+        }
+    }
 }

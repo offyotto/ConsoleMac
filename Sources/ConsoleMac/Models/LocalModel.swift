@@ -36,18 +36,6 @@ enum ModelProvider: String, Codable, Hashable {
         }
     }
 
-    var logoFilename: String {
-        switch self {
-        case .qwen:
-            return "qwen-provider-logo"
-        case .deepSeek:
-            return "deepseek-provider-logo"
-        case .meta:
-            return "meta-provider-logo"
-        case .mistral:
-            return "mistral-provider-logo"
-        }
-    }
 }
 
 struct LocalModel: Identifiable, Hashable, Codable {

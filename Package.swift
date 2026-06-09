@@ -31,7 +31,6 @@ let package = Package(
                 .process("Resources/chat_dashed_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"),
                 .process("Resources/robot_2_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"),
                 .process("Resources/hourglass_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"),
-                .process("Resources/ProviderLogos"),
                 .copy("Resources/AppIcon.icon"),
                 .copy("Resources/AppIcon.icns")
             ]
