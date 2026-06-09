@@ -59,6 +59,8 @@ struct MessagesView: View {
             return "empty"
         }
 
+        // Include plainText.count so we scroll on every token during streaming,
+        // not only when new messages are appended.
         return "\(conversation.id.uuidString)-\(message.id.uuidString)-\(message.plainText.count)"
     }
 }

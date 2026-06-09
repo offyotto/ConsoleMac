@@ -153,6 +153,118 @@ enum OpenRouterChatService {
         }
     }
 
+    static func streamResponse(
+        conversation: Conversation,
+        preferences: AppPreferences,
+        onToken: @MainActor @escaping (String) -> Void
+    ) async throws -> String {
+        guard let apiKey = try APIKeyStore.loadAPIKey(for: .openRouter),
+              apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            throw OpenRouterChatServiceError.missingAPIKey
+        }
+
+        let latestUserText = AgentBudget.latestUserText(in: conversation)
+        let shouldExposeMCPTools = AgentBudget.shouldExposeMCPTools(for: latestUserText)
+        let mcpContext = shouldExposeMCPTools
+            ? MCPClientService.discoverTools(from: preferences.mcpServers)
+            : MCPToolContext()
+        defer { mcpContext.close() }
+
+        let searchContext = FileSearchService.context(
+            for: conversation,
+            preferences: preferences
+        )
+        var systemPrompt = AgentPromptBuilder.systemPromptText(
+            preferences: preferences,
+            searchContext: searchContext
+        )
+
+        if shouldExposeMCPTools, mcpContext.hasTools {
+            systemPrompt += "\nMCP tools are available in this turn. Use them when they help with GitHub or connected external systems."
+        }
+
+        if shouldExposeMCPTools, mcpContext.discoveryErrors.isEmpty == false {
+            systemPrompt += "\nMCP discovery warnings:\n" + mcpContext.discoveryErrors.map { "- \($0)" }.joined(separator: "\n")
+        }
+
+        var messages = chatMessages(for: conversation, systemPrompt: systemPrompt)
+        let tools = chatTools(
+            preferences: preferences,
+            mcpContext: mcpContext,
+            query: latestUserText,
+            includeMCPTools: shouldExposeMCPTools
+        )
+        let modelCandidates = modelCandidates(for: preferences.apiModel)
+        var currentModelIndex = 0
+        var fallbackNotice: String?
+
+        while true {
+            let model = modelCandidates[currentModelIndex]
+            let estimatedTokens = AgentBudget.estimatedOpenRouterInputTokens(messages: messages, tools: tools)
+            guard estimatedTokens <= AgentBudget.maximumEstimatedInputTokens else {
+                throw OpenRouterChatServiceError.tokenBudgetExceeded(estimatedTokens: estimatedTokens)
+            }
+
+            let streamResult: OpenRouterStreamResult
+            do {
+                streamResult = try await createStreamingChatCompletion(
+                    apiKey: apiKey,
+                    model: model,
+                    messages: messages,
+                    tools: tools,
+                    webSearchEnabled: preferences.apiWebSearchEnabled,
+                    onToken: onToken
+                )
+            } catch let error as OpenRouterChatServiceError {
+                guard error.isRetryableProviderFailure,
+                      currentModelIndex + 1 < modelCandidates.count else {
+                    throw error
+                }
+
+                let fallbackModel = modelCandidates[currentModelIndex + 1]
+                currentModelIndex += 1
+                fallbackNotice = "Retried with \(fallbackModel) because \(model) was unavailable through OpenRouter."
+                continue
+            }
+
+            if streamResult.toolCalls.isEmpty {
+                let text = streamResult.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard text.isEmpty == false else {
+                    throw OpenRouterChatServiceError.emptyResponse
+                }
+                if let fallbackNotice {
+                    return "\(fallbackNotice)\n\n\(text)"
+                }
+                return text
+            }
+
+            messages.append(assistantMessageForHistory(streamResult))
+
+            for toolCall in streamResult.toolCalls {
+                let output: String
+                if mcpContext.containsTool(named: toolCall.name) {
+                    output = mcpContext.call(
+                        exposedName: toolCall.name,
+                        argumentsJSON: toolCall.argumentsJSON
+                    )
+                } else {
+                    output = AgentToolService.execute(
+                        name: toolCall.name,
+                        argumentsJSON: toolCall.argumentsJSON,
+                        preferences: preferences
+                    )
+                }
+
+                messages.append([
+                    "role": "tool",
+                    "tool_call_id": toolCall.id,
+                    "name": toolCall.name,
+                    "content": AgentBudget.truncated(output, limit: AgentBudget.maximumMCPResultCharacters)
+                ])
+            }
+        }
+    }
+
     private static func createChatCompletion(
         apiKey: String,
         model: String,
@@ -160,6 +272,114 @@ enum OpenRouterChatService {
         tools: [[String: Any]],
         webSearchEnabled: Bool
     ) async throws -> [String: Any] {
+        let request = try chatCompletionRequest(
+            apiKey: apiKey,
+            model: model,
+            messages: messages,
+            tools: tools,
+            webSearchEnabled: webSearchEnabled,
+            stream: false
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenRouterChatServiceError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "No response body"
+            throw openRouterAPIError(statusCode: httpResponse.statusCode, body: body)
+        }
+
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw OpenRouterChatServiceError.invalidResponse
+        }
+
+        return object
+    }
+
+    private static func createStreamingChatCompletion(
+        apiKey: String,
+        model: String,
+        messages: [[String: Any]],
+        tools: [[String: Any]],
+        webSearchEnabled: Bool,
+        onToken: @MainActor @escaping (String) -> Void
+    ) async throws -> OpenRouterStreamResult {
+        let request = try chatCompletionRequest(
+            apiKey: apiKey,
+            model: model,
+            messages: messages,
+            tools: tools,
+            webSearchEnabled: webSearchEnabled,
+            stream: true
+        )
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenRouterChatServiceError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            var data = Data()
+            for try await byte in bytes {
+                data.append(byte)
+            }
+            let body = String(data: data, encoding: .utf8) ?? "No response body"
+            throw openRouterAPIError(statusCode: httpResponse.statusCode, body: body)
+        }
+
+        var content = ""
+        var toolAccumulator = StreamingToolCallAccumulator()
+
+        for try await line in bytes.lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmedLine.hasPrefix("data:") else { continue }
+
+            let payload = String(trimmedLine.dropFirst(5))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard payload.isEmpty == false else { continue }
+            if payload == "[DONE]" { break }
+
+            guard let data = payload.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                continue
+            }
+
+            if object["error"] != nil {
+                throw openRouterAPIError(statusCode: 400, body: jsonString(from: object))
+            }
+
+            guard let choice = firstChoice(from: object),
+                  let delta = choice["delta"] as? [String: Any] else {
+                continue
+            }
+
+            if let token = delta["content"] as? String, token.isEmpty == false {
+                content += token
+                await onToken(token)
+            }
+
+            if let toolDeltas = delta["tool_calls"] as? [[String: Any]] {
+                toolAccumulator.append(toolDeltas)
+            }
+        }
+
+        return OpenRouterStreamResult(
+            content: content,
+            toolCalls: toolAccumulator.toolCalls,
+            rawToolCalls: toolAccumulator.rawToolCalls
+        )
+    }
+
+    private static func chatCompletionRequest(
+        apiKey: String,
+        model: String,
+        messages: [[String: Any]],
+        tools: [[String: Any]],
+        webSearchEnabled: Bool,
+        stream: Bool
+    ) throws -> URLRequest {
         guard let url = URL(string: endpoint) else {
             throw OpenRouterChatServiceError.invalidURL
         }
@@ -169,7 +389,8 @@ enum OpenRouterChatService {
             "messages": messages,
             "temperature": 0.5,
             "max_tokens": 1800,
-            "parallel_tool_calls": false
+            "parallel_tool_calls": false,
+            "stream": stream
         ]
 
         if tools.isEmpty == false {
@@ -193,22 +414,7 @@ enum OpenRouterChatService {
         request.setValue("Console", forHTTPHeaderField: "X-Title")
         request.setValue("https://console.local", forHTTPHeaderField: "HTTP-Referer")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenRouterChatServiceError.invalidResponse
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? "No response body"
-            throw openRouterAPIError(statusCode: httpResponse.statusCode, body: body)
-        }
-
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw OpenRouterChatServiceError.invalidResponse
-        }
-
-        return object
+        return request
     }
 
     private static func chatMessages(for conversation: Conversation, systemPrompt: String) -> [[String: Any]] {
@@ -294,6 +500,19 @@ enum OpenRouterChatService {
 
         if let toolCalls = message["tool_calls"] {
             historyMessage["tool_calls"] = toolCalls
+        }
+
+        return historyMessage
+    }
+
+    private static func assistantMessageForHistory(_ streamResult: OpenRouterStreamResult) -> [String: Any] {
+        var historyMessage: [String: Any] = [
+            "role": "assistant",
+            "content": streamResult.content.isEmpty ? NSNull() : streamResult.content
+        ]
+
+        if streamResult.rawToolCalls.isEmpty == false {
+            historyMessage["tool_calls"] = streamResult.rawToolCalls
         }
 
         return historyMessage
@@ -406,10 +625,99 @@ enum OpenRouterChatService {
 
         return String(trimmedBody.prefix(280))
     }
+
+    private static func jsonString(from object: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "\(object)"
+        }
+
+        return string
+    }
 }
 
 private struct OpenRouterToolCall {
     var id: String
     var name: String
     var argumentsJSON: String
+}
+
+private struct OpenRouterStreamResult {
+    var content: String
+    var toolCalls: [OpenRouterToolCall]
+    var rawToolCalls: [[String: Any]]
+}
+
+private struct StreamingToolCallAccumulator {
+    private var builders: [Int: StreamingToolCallBuilder] = [:]
+
+    var toolCalls: [OpenRouterToolCall] {
+        builders.keys.sorted().compactMap { index in
+            guard let builder = builders[index],
+                  let id = builder.id,
+                  builder.name.isEmpty == false else {
+                return nil
+            }
+
+            return OpenRouterToolCall(
+                id: id,
+                name: builder.name,
+                argumentsJSON: builder.argumentsJSON.isEmpty ? "{}" : builder.argumentsJSON
+            )
+        }
+    }
+
+    var rawToolCalls: [[String: Any]] {
+        builders.keys.sorted().compactMap { index in
+            guard let builder = builders[index],
+                  let id = builder.id,
+                  builder.name.isEmpty == false else {
+                return nil
+            }
+
+            return [
+                "id": id,
+                "type": "function",
+                "function": [
+                    "name": builder.name,
+                    "arguments": builder.argumentsJSON.isEmpty ? "{}" : builder.argumentsJSON
+                ]
+            ]
+        }
+    }
+
+    mutating func append(_ deltas: [[String: Any]]) {
+        for delta in deltas {
+            let index = delta["index"] as? Int ?? builders.count
+            var builder = builders[index] ?? StreamingToolCallBuilder(index: index)
+
+            if let id = delta["id"] as? String, id.isEmpty == false {
+                builder.id = id
+            }
+
+            if let function = delta["function"] as? [String: Any] {
+                if let name = function["name"] as? String, name.isEmpty == false {
+                    if builder.name.isEmpty {
+                        builder.name = name
+                    } else {
+                        builder.name += name
+                    }
+                }
+
+                if let arguments = function["arguments"] as? String, arguments.isEmpty == false {
+                    builder.argumentsJSON += arguments
+                }
+            }
+
+            builders[index] = builder
+        }
+    }
+}
+
+private struct StreamingToolCallBuilder {
+    var index: Int
+    var id: String?
+    var name = ""
+    var argumentsJSON = ""
 }

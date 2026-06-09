@@ -3,11 +3,14 @@ import Security
 
 enum APIKeyStoreError: LocalizedError {
     case unexpectedStatus(OSStatus)
+    case verificationFailed
 
     var errorDescription: String? {
         switch self {
         case .unexpectedStatus(let status):
             return "Keychain returned status \(status)."
+        case .verificationFailed:
+            return "The key was not readable after saving. Check Keychain access and try again."
         }
     }
 }

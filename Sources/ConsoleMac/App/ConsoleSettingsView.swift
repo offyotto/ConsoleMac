@@ -7,6 +7,7 @@ struct ConsoleSettingsView: View {
     @State private var mcpEndpoint = MCPServerConfig.githubDockerCommand
     @State private var apiKeyInput = ""
     @State private var apiKeyStatus = APIKeyStore.apiKeyExists(for: .openRouter) ? "Saved in Keychain" : "Not saved"
+    @FocusState private var isAPIKeyFieldFocused: Bool
 
     var body: some View {
         TabView {
@@ -73,23 +74,38 @@ struct ConsoleSettingsView: View {
                         TextField("Model", text: binding(\.apiModel))
                     }
 
-                    SecureField("\(store.preferences.apiProvider.title) API key", text: $apiKeyInput)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(store.preferences.apiProvider.title) API key")
+                            .font(Typography.interface(13, .medium))
 
-                    HStack {
-                        Button {
-                            saveAPIKey()
-                        } label: {
-                            Label("Save Key", systemImage: "key")
-                        }
-                        .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        HStack(spacing: 8) {
+                            SecureField("Paste \(store.preferences.apiProvider.title) API key here", text: $apiKeyInput)
+                                .textFieldStyle(.roundedBorder)
+                                .labelsHidden()
+                                .frame(minWidth: 320, maxWidth: .infinity)
+                                .focused($isAPIKeyFieldFocused)
+                                .onSubmit {
+                                    saveAPIKey()
+                                }
 
-                        Button {
-                            APIKeyStore.deleteAPIKey(for: store.preferences.apiProvider)
-                            apiKeyInput = ""
-                            apiKeyStatus = "Removed"
-                            store.refreshAPIKeyAvailability()
-                        } label: {
-                            Label("Remove Key", systemImage: "trash")
+                            Button {
+                                pasteAPIKeyFromClipboard()
+                            } label: {
+                                Label("Paste", systemImage: "doc.on.clipboard")
+                            }
+
+                            Button {
+                                saveAPIKey()
+                            } label: {
+                                Label("Save Key", systemImage: "key")
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Button {
+                                removeAPIKey()
+                            } label: {
+                                Label("Remove Key", systemImage: "trash")
+                            }
                         }
                     }
 
@@ -359,15 +375,54 @@ struct ConsoleSettingsView: View {
     }
 
     private func saveAPIKey() {
+        let trimmedKey = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedKey.isEmpty == false else {
+            apiKeyStatus = "Paste or type a key first"
+            isAPIKeyFieldFocused = true
+            NSSound.beep()
+            return
+        }
+
         do {
-            try APIKeyStore.saveAPIKey(apiKeyInput, for: store.preferences.apiProvider)
+            try APIKeyStore.saveAPIKey(trimmedKey, for: store.preferences.apiProvider)
+            guard let savedKey = try APIKeyStore.loadAPIKey(for: store.preferences.apiProvider),
+                  savedKey == trimmedKey else {
+                throw APIKeyStoreError.verificationFailed
+            }
+
             apiKeyInput = ""
-            apiKeyStatus = "Saved in Keychain"
+            apiKeyStatus = "Saved \(store.preferences.apiProvider.title) key in Keychain"
             store.refreshAPIKeyAvailability()
+            if store.preferences.apiProvider == .openRouter {
+                store.refreshOpenRouterModels()
+            }
         } catch {
             apiKeyStatus = error.localizedDescription
             NSSound.beep()
         }
+    }
+
+    private func pasteAPIKeyFromClipboard() {
+        let pastedKey = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        guard pastedKey.isEmpty == false else {
+            apiKeyStatus = "Clipboard is empty"
+            isAPIKeyFieldFocused = true
+            NSSound.beep()
+            return
+        }
+
+        apiKeyInput = pastedKey
+        apiKeyStatus = "Ready to save \(store.preferences.apiProvider.title) key"
+        isAPIKeyFieldFocused = true
+    }
+
+    private func removeAPIKey() {
+        APIKeyStore.deleteAPIKey(for: store.preferences.apiProvider)
+        apiKeyInput = ""
+        apiKeyStatus = "Removed"
+        store.refreshAPIKeyAvailability()
     }
 
     private func refreshAPIKeyStatus() {

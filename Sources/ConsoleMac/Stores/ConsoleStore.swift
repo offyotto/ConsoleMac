@@ -27,7 +27,7 @@ final class ConsoleStore: ObservableObject {
     private var modelLoadTasks: [String: Task<Void, Never>] = [:]
     private var responseAnimationTasks: [Message.ID: Task<Void, Never>] = [:]
     private var retentionTimer: Timer?
-    private static let responseTypingDelayNanoseconds: UInt64 = 14_000_000
+
 
     init() {
         temporaryConversation = Self.makeTemporaryConversation()
@@ -582,97 +582,75 @@ final class ConsoleStore: ObservableObject {
         let preferences = preferences
         isGeneratingResponse = true
 
-        Task {
-            let result: Result<String, Error>
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
             do {
-                let response: String
                 if preferences.apiAgentModeEnabled {
                     switch preferences.apiProvider {
                     case .openAI:
-                        response = try await OpenAIResponsesService.generateResponse(
+                        // OpenAI Responses API does not stream yet — use non-streaming
+                        // path and animate locally for a consistent feel.
+                        let response = try await OpenAIResponsesService.generateResponse(
                             conversation: promptConversation,
                             preferences: preferences
                         )
+                        self.applyFinalResponse(response, target: target, responseID: responseID)
+
                     case .openRouter:
-                        response = try await OpenRouterChatService.generateResponse(
+                        // OpenRouter streams tokens live — feed each token directly into
+                        // the message so the user sees words appear as they are generated.
+                        var accumulated = ""
+                        let finalResponse = try await OpenRouterChatService.streamResponse(
                             conversation: promptConversation,
-                            preferences: preferences
+                            preferences: preferences,
+                            onToken: { [weak self] token in
+                                guard let self else { return }
+                                accumulated += token
+                                let blocks = MessageBlock.markdownBlocks(from: accumulated)
+                                _ = self.setAssistantResponseBlocks(blocks, target: target, responseID: responseID)
+                            }
                         )
+                        // Commit the fully assembled response to ensure the final parsed
+                        // markdown (e.g. code fences that arrived mid-stream) is correct.
+                        self.applyFinalResponse(finalResponse, target: target, responseID: responseID)
                     }
                 } else if let model {
-                    response = try await LocalModelRuntime.generateResponse(
+                    // Local MLX model — stream tokens directly (MLXRuntime already yields
+                    // individual chunks).
+                    let response = try await LocalModelRuntime.generateResponse(
                         model: model,
                         conversation: promptConversation,
                         preferences: preferences
                     )
+                    self.applyFinalResponse(response, target: target, responseID: responseID)
                 } else {
                     throw LocalModelRuntimeError.noModelSelected
                 }
-                result = .success(response)
             } catch {
-                result = .failure(error)
+                let errorText = (error as? LocalizedError)?.errorDescription
+                    ?? "The model failed to respond: \(error.localizedDescription)"
+                self.applyFinalResponse(errorText, target: target, responseID: responseID)
             }
 
-            applyAssistantResponseResult(result, target: target, responseID: responseID)
-        }
-    }
-
-    private func applyAssistantResponseResult(
-        _ result: Result<String, Error>,
-        target: ResponseTarget,
-        responseID: Message.ID
-    ) {
-        let responseText: String
-        switch result {
-        case .success(let text):
-            responseText = text
-        case .failure(let error):
-            responseText = (error as? LocalizedError)?.errorDescription
-                ?? "The local model failed to respond: \(error.localizedDescription)"
-        }
-
-        animateAssistantResponse(responseText, target: target, responseID: responseID)
-    }
-
-    private func animateAssistantResponse(
-        _ responseText: String,
-        target: ResponseTarget,
-        responseID: Message.ID
-    ) {
-        responseAnimationTasks[responseID]?.cancel()
-
-        guard responseText.isEmpty == false else {
-            setAssistantResponseBlocks([.paragraph("")], target: target, responseID: responseID)
-            responseAnimationTasks[responseID] = nil
-            isGeneratingResponse = false
-            return
-        }
-
-        let chunks = Self.responseTypingChunks(for: responseText)
-        let finalBlocks = MessageBlock.markdownBlocks(from: responseText)
-
-        responseAnimationTasks[responseID] = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            for chunk in chunks {
-                if Task.isCancelled { return }
-
-                let blocks = MessageBlock.markdownBlocks(from: chunk)
-                guard self.setAssistantResponseBlocks(blocks, target: target, responseID: responseID) else {
-                    self.responseAnimationTasks[responseID] = nil
-                    self.isGeneratingResponse = false
-                    return
-                }
-
-                try? await Task.sleep(nanoseconds: Self.responseTypingDelayNanoseconds)
-            }
-
-            if Task.isCancelled { return }
-
-            _ = self.setAssistantResponseBlocks(finalBlocks, target: target, responseID: responseID)
             self.responseAnimationTasks[responseID] = nil
             self.isGeneratingResponse = false
         }
+    }
+
+    /// Writes the completed response text into the message, applying full markdown parsing.
+    private func applyFinalResponse(
+        _ text: String,
+        target: ResponseTarget,
+        responseID: Message.ID
+    ) {
+        let blocks: [MessageBlock]
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            blocks = [.paragraph("")]
+        } else {
+            blocks = MessageBlock.markdownBlocks(from: text)
+        }
+        _ = setAssistantResponseBlocks(blocks, target: target, responseID: responseID)
     }
 
     @discardableResult
@@ -819,37 +797,6 @@ final class ConsoleStore: ObservableObject {
         return merged
     }
 
-    private static func responseTypingChunks(for text: String) -> [String] {
-        let characters = Array(text)
-        guard characters.isEmpty == false else { return [] }
-
-        let step = responseTypingStep(for: characters.count)
-        var chunks: [String] = []
-        var endIndex = min(step, characters.count)
-
-        while endIndex < characters.count {
-            chunks.append(String(characters.prefix(endIndex)))
-            endIndex += step
-        }
-
-        chunks.append(text)
-        return chunks
-    }
-
-    private static func responseTypingStep(for characterCount: Int) -> Int {
-        switch characterCount {
-        case 0..<320:
-            return 4
-        case 320..<900:
-            return 7
-        case 900..<2_200:
-            return 12
-        case 2_200..<5_000:
-            return 22
-        default:
-            return 36
-        }
-    }
 
     private static func title(from text: String) -> String {
         let words = text.split(separator: " ").prefix(6).joined(separator: " ")
