@@ -1,0 +1,302 @@
+import SwiftUI
+
+struct OnboardingView: View {
+    @ObservedObject var store: ConsoleStore
+    @State private var preferences: AppPreferences
+    @State private var step: OnboardingStep = .identity
+
+    init(store: ConsoleStore) {
+        self.store = store
+        _preferences = State(initialValue: store.preferences)
+    }
+
+    private var canContinue: Bool {
+        !preferences.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !preferences.assistantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+
+            Divider()
+
+            VStack(spacing: 0) {
+                Group {
+                    switch step {
+                    case .identity:
+                        IdentityStep(preferences: $preferences)
+                    case .preferences:
+                        PreferenceStep(preferences: $preferences)
+                    case .instructions:
+                        InstructionsStep(preferences: $preferences)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(28)
+
+                Divider()
+
+                footer
+            }
+            .frame(width: 520, height: 480)
+            .background(Theme.windowBackground)
+        }
+        .frame(width: 720, height: 480)
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(spacing: 10) {
+                TerminalIconView(size: 26)
+                    .foregroundStyle(.primary)
+
+                Text("Console")
+                    .font(Typography.interface(16, .bold))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(OnboardingStep.allCases) { item in
+                    OnboardingStepRow(
+                        step: item,
+                        isSelected: item == step,
+                        isComplete: item.rawValue < step.rawValue
+                    )
+                    .onTapGesture {
+                        if item.rawValue <= step.rawValue || canContinue {
+                            step = item
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            Text("Local models, your naming, your instructions.")
+                .font(Typography.interface(12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(22)
+        .frame(width: 200)
+        .frame(maxHeight: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+    }
+
+    private var footer: some View {
+        HStack {
+            Button("Back") {
+                step = OnboardingStep(rawValue: step.rawValue - 1) ?? .identity
+            }
+            .disabled(step == .identity)
+
+            Spacer()
+
+            if step == .instructions {
+                Button {
+                    store.completeOnboarding(preferences)
+                } label: {
+                    Label("Start Using Console", systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canContinue)
+            } else {
+                Button {
+                    step = OnboardingStep(rawValue: step.rawValue + 1) ?? .instructions
+                } label: {
+                    Label("Continue", systemImage: "arrow.right")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canContinue)
+            }
+        }
+        .padding(.horizontal, 24)
+        .frame(height: 62)
+        .background(.bar)
+    }
+}
+
+private enum OnboardingStep: Int, CaseIterable, Identifiable {
+    case identity
+    case preferences
+    case instructions
+
+    var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .identity:
+            return "Identity"
+        case .preferences:
+            return "Preferences"
+        case .instructions:
+            return "Instructions"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .identity:
+            return "person.crop.circle"
+        case .preferences:
+            return "slider.horizontal.3"
+        case .instructions:
+            return "text.alignleft"
+        }
+    }
+}
+
+private struct OnboardingStepRow: View {
+    let step: OnboardingStep
+    let isSelected: Bool
+    let isComplete: Bool
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: isComplete ? "checkmark.circle.fill" : step.systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .frame(width: 18)
+
+            Text(step.title)
+                .font(Typography.interface(13, isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? .primary : .secondary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(isSelected ? Theme.subtleFill : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+}
+
+private struct IdentityStep: View {
+    @Binding var preferences: AppPreferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            StepTitle(
+                title: "Set up your names",
+                subtitle: "These names are used in transcripts and when building model prompts."
+            )
+
+            VStack(alignment: .leading, spacing: 14) {
+                LabeledField(
+                    title: "What should the model call you?",
+                    text: $preferences.userName,
+                    prompt: "Your name"
+                )
+
+                LabeledField(
+                    title: "What should the model call itself?",
+                    text: $preferences.assistantName,
+                    prompt: "Console"
+                )
+            }
+        }
+    }
+}
+
+private struct PreferenceStep: View {
+    @Binding var preferences: AppPreferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            StepTitle(
+                title: "Choose your defaults",
+                subtitle: "Console will use these when preparing requests for local models."
+            )
+
+            VStack(alignment: .leading, spacing: 16) {
+                Picker("Response style", selection: $preferences.responsePreference) {
+                    ForEach(ResponsePreference.allCases) { preference in
+                        Text(preference.title).tag(preference)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Toggle("Keep code context with new prompts", isOn: $preferences.keepCodeContext)
+                Toggle("Save transcripts on this Mac", isOn: $preferences.saveTranscripts)
+                Toggle("Use full Mac file access for agent search", isOn: $preferences.fullFileSystemAccessEnabled)
+            }
+            .font(Typography.interface(13))
+        }
+    }
+}
+
+private struct InstructionsStep: View {
+    @Binding var preferences: AppPreferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            StepTitle(
+                title: "Custom instructions",
+                subtitle: "Add any standing behavior you want local models to follow."
+            )
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $preferences.customInstructions)
+                    .font(Typography.interface(13))
+                    .scrollContentBackground(.hidden)
+                    .padding(10)
+                    .background(Theme.textBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Theme.separator.opacity(0.75), lineWidth: 1)
+                    }
+
+                if preferences.customInstructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Examples: mirror my casual tone, keep coding answers concrete, ask before destructive operations.")
+                        .font(Typography.interface(13))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 18)
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(height: 220)
+        }
+    }
+}
+
+private struct StepTitle: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(Typography.interface(24, .semibold))
+                .foregroundStyle(.primary)
+
+            Text(subtitle)
+                .font(Typography.interface(13))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct LabeledField: View {
+    let title: String
+    @Binding var text: String
+    let prompt: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(Typography.interface(12, .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .font(Typography.interface(15, .medium))
+                .padding(.horizontal, 11)
+                .frame(height: 36)
+                .background(Theme.textBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Theme.separator.opacity(0.75), lineWidth: 1)
+                }
+        }
+    }
+}
