@@ -45,6 +45,7 @@ struct MessageRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .onHover { rowHovered = $0 }
+        // Optimized transition for older processors: simpler animation curve
         .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
 

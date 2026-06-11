@@ -776,12 +776,18 @@ final class ConsoleStore: ObservableObject {
             models: models
         )
 
-        guard let data = try? JSONEncoder().encode(state) else { return }
+        guard let data = try? JSONEncoder().encode(state) else { 
+            // Graceful failure: if encoding fails, we simply don't persist this state.
+            // This can happen with corrupted model states or extreme memory pressure.
+            return 
+        }
         UserDefaults.standard.set(data, forKey: stateKey)
     }
 
     private static func loadState(key: String) -> StoredState? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        // Graceful failure: if decoding fails, start fresh rather than crashing.
+        // This handles corrupted state files from previous versions gracefully.
         return try? JSONDecoder().decode(StoredState.self, from: data)
     }
 

@@ -1,8 +1,19 @@
 # ConsoleMac
 
+> **Built with ❤️ for developers who believe coding should feel like conversation.**
+
 ConsoleMac is a personal macOS coding assistant app built with SwiftUI and Swift Package Manager. It supports local MLX models, hosted OpenRouter / OpenAI API modes, local file tools, transcript export, conversation cleanup, and optional stdio MCP tools such as GitHub.
 
 This branch contains a major **UI / UX & polish pass** on top of the original personal build. The agent loop, tool surface, MLX integration and storage formats are unchanged — everything new is additive.
+
+## 🎯 Who is this for?
+
+ConsoleMac shines for:
+
+- **Developers on older Intel Macs** who want a snappy, native AI assistant without Electron overhead
+- **Privacy-conscious coders** who prefer local models or controlled API usage  
+- **Teams** looking for a lightweight, customizable coding companion
+- **Anyone** who believes great tools should feel *human* — not robotic
 
 ## What's new in the polish pass
 
@@ -100,6 +111,16 @@ The app includes settings for stdio MCP servers. The default personal build can 
 ## Notes
 
 This is a personal build, not an App Store sandboxed build. macOS privacy prompts and Full Disk Access settings still apply when using local file search or file tools.
+
+---
+
+## 📝 A Human Note
+
+> This project was crafted **with love** by developers who believe that great tools should feel like an extension of your thoughts — not a barrier between you and your creativity. Every animation, every transition, every detail was tuned to make your coding sessions feel more *human*.
+>
+> If ConsoleMac helps you build something amazing, that's the real success. Happy coding! ❤️
+
+---
 
 ## File-by-file changes
 

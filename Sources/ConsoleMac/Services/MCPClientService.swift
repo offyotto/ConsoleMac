@@ -281,9 +281,17 @@ final class MCPStdioSession: @unchecked Sendable {
 
         guard alreadyClosed == false else { return }
 
+        // Clean up file handles gracefully — failures here are non-fatal.
+        // The process will be terminated regardless of cleanup success.
         stdoutPipe.fileHandleForReading.readabilityHandler = nil
         stderrPipe.fileHandleForReading.readabilityHandler = nil
-        try? stdinPipe.fileHandleForWriting.close()
+        
+        do {
+            try stdinPipe.fileHandleForWriting.close()
+        } catch {
+            // Non-fatal: pipe may already be closed or broken.
+            // Process termination will clean up resources.
+        }
 
         if process.isRunning {
             process.terminate()

@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 
+/// ConsoleMac — A human-centered coding assistant for macOS.
+/// 
+/// Built with ❤️ for developers who believe great tools should feel alive.
 @main
 struct ConsoleMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
