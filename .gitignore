@@ -1,11 +1,29 @@
-.DS_Store
+```
+# Build artifacts
 .build/
-dist/
 DerivedData/
-*.xcuserdata/
-*.app/
-*.zip
-*.dSYM/
+*.o
+*.obj
+
+# Dependencies
+Packages/
+Package.resolved
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
 .env
-.env.*
-Config/*.local.*
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+```

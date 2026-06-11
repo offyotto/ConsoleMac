@@ -1,5 +1,7 @@
 # Console Personal Build
 
+> **Crafted with ❤️ — This is a personal build, made for developers who care about the details.**
+
 Console is currently packaged as a personal macOS app, not an App Store build.
 
 ## What This Means

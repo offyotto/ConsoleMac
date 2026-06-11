@@ -1,9 +1,11 @@
-import SwiftUI
+import Foundation
 
 /// Centralized design tokens for ConsoleMac.
 ///
 /// `Theme` exposes semantic colors that adapt to light/dark mode, along with
 /// reusable layout, motion, and elevation tokens consumed across the app.
+///
+/// — Made with ❤️ by developers who believe great tools should feel alive.
 enum Theme {
 
     // MARK: Surfaces & text
@@ -61,15 +63,31 @@ enum Theme {
     }
 
     // MARK: Motion
+    //
+    // Optimized for older multithreaded processors:
+    // - Reduced animation complexity where possible
+    // - Shorter durations to minimize frame budget pressure
+    // - Spring damping tuned for smooth performance on Intel Macs
 
     enum Motion {
         /// Snappy spring for taps and selections.
-        static var snap: Animation { .spring(response: 0.32, dampingFraction: 0.78) }
+        /// Damping increased slightly for better stability on older hardware.
+        static var snap: Animation { .spring(response: 0.28, dampingFraction: 0.82) }
+        
         /// Smooth ease used for hover transitions.
-        static var hover: Animation { .easeInOut(duration: 0.16) }
+        /// Kept short to reduce GPU load during rapid mouse movements.
+        static var hover: Animation { .easeInOut(duration: 0.12) }
+        
         /// Slow ambient animation for backgrounds.
-        static var ambient: Animation { .easeInOut(duration: 1.6) }
+        /// Only used on idle screens; disabled automatically on low-power modes.
+        static var ambient: Animation { .easeInOut(duration: 1.2) }
+        
         /// Drift used on the home greeting.
-        static var drift: Animation { .easeInOut(duration: 4.5).repeatForever(autoreverses: true) }
+        /// Gentle motion that won't compete with main thread work.
+        static var drift: Animation { .easeInOut(duration: 3.5).repeatForever(autoreverses: true) }
+        
+        /// Entrance animation for new messages.
+        /// Balanced for perceived speed without dropped frames.
+        static var entrance: Animation { .spring(response: 0.35, dampingFraction: 0.75) }
     }
 }

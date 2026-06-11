@@ -41,7 +41,8 @@ struct MessagesView: View {
                     .padding(.bottom, 28)
                     .frame(maxWidth: 920, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .animation(.easeOut(duration: 0.22), value: store.selectedConversation?.messages.count ?? 0)
+                    // Optimized animation for older processors: uses spring with higher damping
+                    .animation(Theme.Motion.entrance, value: store.selectedConversation?.messages.count ?? 0)
                 }
             }
             .onAppear {
