@@ -70,7 +70,7 @@ struct SidebarView: View {
         .background(.regularMaterial)
     }
 
-    // MARK: - Sections
+    // MARK: - Navigation
 
     private var navigationGroup: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -103,7 +103,7 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Filtering helpers
+    // MARK: - Filtering
 
     private var trimmedQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,7 +165,7 @@ struct SidebarView: View {
             },
             delete: {
                 store.deleteConversation(conversation.id)
-                ToastCenter.shared.show("Conversation deleted", icon: "trash")
+                ToastCenter.shared.show("Deleted", icon: "trash")
             }
         )
     }
@@ -177,11 +177,11 @@ private struct SidebarHeader: View {
     let canCreateConversation: Bool
     let newConversation: () -> Void
 
-    @State private var iconBob = false
-
     var body: some View {
         HStack(spacing: 10) {
-            BrandMark(iconBob: $iconBob)
+            TerminalIconView(size: 22)
+                .foregroundStyle(.primary)
+                .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("Console")
@@ -211,9 +211,6 @@ private struct SidebarHeader: View {
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 10)
-        .onAppear {
-            withAnimation(Theme.Motion.drift) { iconBob.toggle() }
-        }
     }
 }
 
@@ -345,19 +342,6 @@ private struct SidebarNavigationButton: View {
             Image(systemName: systemImage ?? "circle")
                 .font(.system(size: 13, weight: .semibold))
         }
-    }
-}
-
-// MARK: - Brand mark
-
-private struct BrandMark: View {
-    @Binding var iconBob: Bool
-
-    var body: some View {
-        TerminalIconView(size: 25)
-            .foregroundStyle(.primary)
-            .frame(width: 30, height: 30)
-            .offset(y: iconBob ? -0.5 : 0.5)
     }
 }
 

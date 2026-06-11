@@ -97,8 +97,6 @@ struct ComposerView: View {
     }
 
     private func handleSubmit() {
-        // Plain Return inserts a newline (axis: .vertical handles that automatically);
-        // Cmd+Return is wired below via .keyboardShortcut.
         store.sendDraft()
     }
 
@@ -179,14 +177,14 @@ struct ComposerView: View {
 
     private var hintText: String {
         if isDropTargeted { return "Drop to add as a search resource" }
-        if store.isGeneratingResponse { return "Press Stop to interrupt the response" }
+        if store.isGeneratingResponse { return "Press Stop to cancel" }
         if !store.canCompose {
             return store.preferences.apiAgentModeEnabled
-                ? "Add an API key in Settings to enable sending"
+                ? "Add an API key in Settings"
                 : "Install a model from the Models tab"
         }
         return store.preferences.apiAgentModeEnabled
-            ? "API agent mode · \(store.preferences.apiProvider.title)"
+            ? "API agent · \(store.preferences.apiProvider.title)"
             : "Local model · ready"
     }
 

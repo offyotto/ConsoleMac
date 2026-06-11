@@ -41,7 +41,6 @@ struct MessagesView: View {
                     .padding(.bottom, 28)
                     .frame(maxWidth: 920, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    // Optimized animation for older processors: uses spring with higher damping
                     .animation(Theme.Motion.entrance, value: store.selectedConversation?.messages.count ?? 0)
                 }
             }
@@ -66,7 +65,6 @@ struct MessagesView: View {
               let message = conversation.messages.last else {
             return "empty"
         }
-
         return "\(conversation.id.uuidString)-\(message.id.uuidString)-\(message.plainText.count)"
     }
 }
@@ -79,44 +77,38 @@ private struct EmptyThreadView: View {
     let canCompose: Bool
     let applyPrompt: (String) -> Void
 
-    @State private var floating = false
-
     var body: some View {
         VStack(spacing: 18) {
             ZStack {
                 Circle()
                     .fill(Theme.subtleFill)
-                    .frame(width: 78, height: 78)
+                    .frame(width: 64, height: 64)
                     .overlay(Circle().stroke(Theme.separator.opacity(0.5), lineWidth: 0.5))
 
                 if isTemporary {
-                    ConsoleSymbolView(asset: .temporaryChat, size: 34)
+                    ConsoleSymbolView(asset: .temporaryChat, size: 30)
                         .foregroundStyle(.secondary)
                 } else {
-                    TerminalIconView(size: 36)
+                    TerminalIconView(size: 30)
                         .foregroundStyle(.primary.opacity(0.75))
                 }
             }
-            .offset(y: floating ? -4 : 4)
-            .onAppear {
-                withAnimation(Theme.Motion.drift) { floating.toggle() }
-            }
 
-            VStack(spacing: 6) {
+            VStack(spacing: 5) {
                 Text(isTemporary ? "Temporary chat" : (modelName ?? "No model selected"))
-                    .font(Typography.interface(20, .semibold))
+                    .font(Typography.interface(18, .semibold))
                     .foregroundStyle(.primary)
 
                 Text(emptyText)
                     .font(Typography.interface(13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 460)
+                    .frame(maxWidth: 420)
             }
 
             if canCompose {
                 SuggestionChips(applyPrompt: applyPrompt)
-                    .padding(.top, 6)
+                    .padding(.top, 4)
             }
         }
     }
@@ -126,9 +118,9 @@ private struct EmptyThreadView: View {
             return "Install a model from the Models tab before sending."
         }
         if isTemporary {
-            return "Messages here aren't saved to the sidebar. Great for one-off questions."
+            return "Messages here are not saved to the sidebar."
         }
-        return "Start with a prompt, command, file question, or repo task. Tap a suggestion below to get going."
+        return "Type a message or pick a suggestion below."
     }
 }
 
@@ -160,9 +152,9 @@ private struct SuggestionChip: View {
         Button(action: action) {
             HStack(spacing: 9) {
                 Image(systemName: suggestion.icon)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.accent)
-                    .frame(width: 24)
+                    .frame(width: 22)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(suggestion.title)
@@ -192,7 +184,7 @@ private struct SuggestionChip: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Theme.separator.opacity(hovering ? 0.9 : 0.5), lineWidth: 0.5)
+                    .stroke(Theme.separator.opacity(hovering ? 0.8 : 0.5), lineWidth: 0.5)
             )
         }
         .buttonStyle(PressableButtonStyle())
@@ -224,12 +216,8 @@ private struct DayDivider: View {
 
 private extension Date {
     var conversationDayLabel: String {
-        if Calendar.current.isDateInToday(self) {
-            return "Today"
-        }
-        if Calendar.current.isDateInYesterday(self) {
-            return "Yesterday"
-        }
+        if Calendar.current.isDateInToday(self) { return "Today" }
+        if Calendar.current.isDateInYesterday(self) { return "Yesterday" }
         return formatted(date: .abbreviated, time: .omitted)
     }
 }

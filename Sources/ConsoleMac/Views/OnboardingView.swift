@@ -18,9 +18,7 @@ struct OnboardingView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-
             Divider()
-
             VStack(spacing: 0) {
                 Group {
                     switch step {
@@ -65,19 +63,18 @@ struct OnboardingView: View {
                     RoundedRectangle(cornerRadius: 8).fill(Theme.subtleFill)
                         .frame(width: 34, height: 34)
                     TerminalIconView(size: 20)
-                        .foregroundStyle(Theme.brandGradient)
+                        .foregroundStyle(.primary)
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Console")
                         .font(Typography.interface(16, .bold))
-                    Text("Welcome")
+                    Text("Setup")
                         .font(Typography.interface(11))
                         .foregroundStyle(.secondary)
                 }
             }
 
-            // Step progress
             VStack(alignment: .leading, spacing: 6) {
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
@@ -112,11 +109,6 @@ struct OnboardingView: View {
             }
 
             Spacer()
-
-            Text("Local models, your naming, your instructions.")
-                .font(Typography.interface(12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(22)
         .frame(width: 200)
@@ -140,7 +132,7 @@ struct OnboardingView: View {
                 Button {
                     store.completeOnboarding(preferences)
                 } label: {
-                    Label("Start Using Console", systemImage: "checkmark")
+                    Label("Get Started", systemImage: "checkmark")
                         .padding(.horizontal, 4)
                 }
                 .buttonStyle(.borderedProminent)
@@ -183,23 +175,17 @@ private enum OnboardingStep: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .identity:
-            return "Identity"
-        case .preferences:
-            return "Preferences"
-        case .instructions:
-            return "Instructions"
+        case .identity: return "Identity"
+        case .preferences: return "Preferences"
+        case .instructions: return "Instructions"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .identity:
-            return "person.crop.circle"
-        case .preferences:
-            return "slider.horizontal.3"
-        case .instructions:
-            return "text.alignleft"
+        case .identity: return "person.crop.circle"
+        case .preferences: return "slider.horizontal.3"
+        case .instructions: return "text.alignleft"
         }
     }
 }
@@ -235,7 +221,7 @@ private struct IdentityStep: View {
         VStack(alignment: .leading, spacing: 22) {
             StepTitle(
                 title: "Set up your names",
-                subtitle: "These names are used in transcripts and when building model prompts."
+                subtitle: "Used in transcripts and when building model prompts."
             )
 
             VStack(alignment: .leading, spacing: 14) {
@@ -261,8 +247,8 @@ private struct PreferenceStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             StepTitle(
-                title: "Choose your defaults",
-                subtitle: "Console will use these when preparing requests for local models."
+                title: "Defaults",
+                subtitle: "These apply when preparing requests for local models."
             )
 
             VStack(alignment: .leading, spacing: 16) {
@@ -289,7 +275,7 @@ private struct InstructionsStep: View {
         VStack(alignment: .leading, spacing: 18) {
             StepTitle(
                 title: "Custom instructions",
-                subtitle: "Add any standing behavior you want local models to follow."
+                subtitle: "Standing behavior for local models to follow."
             )
 
             ZStack(alignment: .topLeading) {
@@ -304,7 +290,7 @@ private struct InstructionsStep: View {
                     }
 
                 if preferences.customInstructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("Examples: mirror my casual tone, keep coding answers concrete, ask before destructive operations.")
+                    Text("e.g. mirror my casual tone, keep coding answers concrete, ask before destructive operations.")
                         .font(Typography.interface(13))
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 16)

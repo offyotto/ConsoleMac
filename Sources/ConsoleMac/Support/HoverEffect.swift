@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// A reusable hover background highlight that follows pointer hover state.
 struct HoverHighlight: ViewModifier {
     let cornerRadius: CGFloat
     let hoverFill: Color
@@ -30,8 +29,6 @@ struct HoverHighlight: ViewModifier {
 }
 
 extension View {
-    /// Adds an animated hover-highlight background, optionally locked to a
-    /// selected state when `isSelected` is true.
     func hoverHighlight(
         cornerRadius: CGFloat = Theme.Radius.sm,
         hoverFill: Color = Theme.hoverFill,
@@ -47,7 +44,6 @@ extension View {
     }
 }
 
-/// A subtle pressed-state scale + opacity effect for plain buttons.
 struct PressableButtonStyle: ButtonStyle {
     var scale: CGFloat = 0.97
     var pressedOpacity: Double = 0.85

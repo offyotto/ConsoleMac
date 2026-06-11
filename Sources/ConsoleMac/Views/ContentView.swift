@@ -37,7 +37,6 @@ struct ContentView: View {
         }
         .background(
             VStack {
-                // Off-screen buttons to surface app-wide shortcuts.
                 Button("") { showCommandPalette = true }
                     .keyboardShortcut("k", modifiers: [.command])
                 Button("") { showShortcutsSheet.toggle() }
@@ -102,7 +101,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Home view (no conversation selected)
+// MARK: - Home view
 
 struct ConversationHomeView: View {
     @ObservedObject var store: ConsoleStore
@@ -113,12 +112,11 @@ struct ConversationHomeView: View {
             Color(nsColor: .windowBackgroundColor)
                 .ignoresSafeArea()
 
-            // Soft ambient gradient background
             LinearGradient(
                 colors: [
-                    Theme.accent.opacity(0.10),
+                    Theme.accent.opacity(0.08),
                     Color.clear,
-                    Theme.accent.opacity(0.05)
+                    Theme.accent.opacity(0.04)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -126,10 +124,9 @@ struct ConversationHomeView: View {
             .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 28) {
-                    Spacer(minLength: 30)
-
-                    GreetingCard(store: store, openSettings: openConsoleSettings)
+                VStack(spacing: 24) {
+                    Spacer(minLength: 24)
+                    StartCard(store: store, openSettings: openConsoleSettings)
 
                     if store.canCompose {
                         QuickPromptsCard(store: store)
@@ -139,7 +136,7 @@ struct ConversationHomeView: View {
                         RecentConversationsCard(store: store)
                     }
 
-                    Spacer(minLength: 30)
+                    Spacer(minLength: 24)
                 }
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 760)
@@ -149,29 +146,24 @@ struct ConversationHomeView: View {
     }
 }
 
-private struct GreetingCard: View {
+private struct StartCard: View {
     @ObservedObject var store: ConsoleStore
     let openSettings: () -> Void
-    @State private var bob = false
 
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(Theme.subtleFill)
-                    .frame(width: 78, height: 78)
+                    .frame(width: 64, height: 64)
                     .overlay(Circle().stroke(Theme.separator.opacity(0.5), lineWidth: 0.5))
-                TerminalIconView(size: 38)
-                    .foregroundStyle(Theme.brandGradient)
-                    .offset(y: bob ? -2 : 2)
-            }
-            .onAppear {
-                withAnimation(Theme.Motion.drift) { bob.toggle() }
+                TerminalIconView(size: 32)
+                    .foregroundStyle(.primary.opacity(0.8))
             }
 
-            VStack(spacing: 6) {
-                Text(greetingText)
-                    .font(Typography.interface(26, .semibold))
+            VStack(spacing: 5) {
+                Text(headingText)
+                    .font(Typography.interface(22, .semibold))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
 
@@ -179,7 +171,7 @@ private struct GreetingCard: View {
                     .font(Typography.interface(13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 480)
+                    .frame(maxWidth: 440)
             }
 
             HStack(spacing: 10) {
@@ -188,7 +180,6 @@ private struct GreetingCard: View {
                         store.createConversation()
                     } label: {
                         Label("New Conversation", systemImage: "square.and.pencil")
-                            .font(Typography.interface(13, .medium))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
                     }
@@ -229,49 +220,31 @@ private struct GreetingCard: View {
                 .controlSize(.large)
             }
         }
-        .padding(.vertical, 32)
-        .padding(.horizontal, 28)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Theme.separator.opacity(0.6), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 8)
+        .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
     }
 
-    private var greetingText: String {
-        let name = store.preferences.displayUserName
-        let salutation = nameOrFallback(name)
+    private var headingText: String {
         if store.canCompose {
-            return "\(timeBasedGreeting), \(salutation)"
-        } else {
-            return store.preferences.apiAgentModeEnabled ? "Add an API key" : "Install a model"
+            return "Console"
         }
+        return store.preferences.apiAgentModeEnabled ? "Add an API key" : "Install a model"
     }
 
     private var subtitleText: String {
         if store.canCompose {
-            return "Ask Console anything, attach context, and keep the thread ready for later."
+            return "Start a conversation, attach files for context, and pick up where you left off."
         }
         return store.preferences.apiAgentModeEnabled
-            ? "Save a \(store.preferences.apiProvider.title) API key in Settings before sending prompts."
-            : "Choose a local coding model before sending prompts."
-    }
-
-    private var timeBasedGreeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default: return "Working late"
-        }
-    }
-
-    private func nameOrFallback(_ name: String) -> String {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty || trimmed == "You" ? "there" : trimmed.components(separatedBy: " ").first ?? trimmed
+            ? "Add a \(store.preferences.apiProvider.title) API key in Settings to get started."
+            : "Install a local model from the Models tab to get started."
     }
 }
 
@@ -283,9 +256,7 @@ private struct QuickPromptsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(Theme.accent)
-                Text("Quick prompts")
+                Text("Suggestions")
                     .font(Typography.interface(13, .semibold))
                 Spacer()
                 Text("Tap to start")
@@ -301,11 +272,11 @@ private struct QuickPromptsCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Theme.separator.opacity(0.55), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Theme.separator.opacity(0.5), lineWidth: 1)
         )
     }
 }
@@ -321,10 +292,10 @@ private struct QuickPromptTile: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(Theme.accent.opacity(0.12))
-                        .frame(width: 30, height: 30)
+                        .fill(Theme.subtleFill)
+                        .frame(width: 28, height: 28)
                     Image(systemName: suggestion.icon)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.accent)
                 }
 
@@ -343,12 +314,12 @@ private struct QuickPromptTile: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(hovering ? Theme.hoverFill : Theme.subtleFill.opacity(0.6))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Theme.separator.opacity(hovering ? 0.9 : 0.4), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Theme.separator.opacity(hovering ? 0.8 : 0.4), lineWidth: 0.5)
             )
         }
         .buttonStyle(PressableButtonStyle())
@@ -363,9 +334,7 @@ private struct RecentConversationsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(Theme.accent)
-                Text("Recent conversations")
+                Text("Recent")
                     .font(Typography.interface(13, .semibold))
                 Spacer()
                 Button {
@@ -386,11 +355,11 @@ private struct RecentConversationsCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Theme.separator.opacity(0.55), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Theme.separator.opacity(0.5), lineWidth: 1)
         )
     }
 }

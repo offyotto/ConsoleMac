@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Lightweight in-app toast notifications for confirmations like
-/// "Copied", "Exported", "Conversation deleted".
 @MainActor
 final class ToastCenter: ObservableObject {
     static let shared = ToastCenter()

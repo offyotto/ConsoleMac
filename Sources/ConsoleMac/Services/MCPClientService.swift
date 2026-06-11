@@ -285,7 +285,7 @@ final class MCPStdioSession: @unchecked Sendable {
         // The process will be terminated regardless of cleanup success.
         stdoutPipe.fileHandleForReading.readabilityHandler = nil
         stderrPipe.fileHandleForReading.readabilityHandler = nil
-        
+
         do {
             try stdinPipe.fileHandleForWriting.close()
         } catch {

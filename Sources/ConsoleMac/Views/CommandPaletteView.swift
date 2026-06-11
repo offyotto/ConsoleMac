@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A spotlight-style command palette presented over the main window. Supports
-/// keyboard-only navigation: arrow keys move the selection, Return invokes.
 struct CommandPaletteView: View {
     @ObservedObject var store: ConsoleStore
     @Binding var isPresented: Bool
@@ -12,15 +10,13 @@ struct CommandPaletteView: View {
     @State private var selectionIndex: Int = 0
     @FocusState private var fieldFocused: Bool
 
-    // MARK: - Commands
-
     private var allCommands: [PaletteCommand] {
         var commands: [PaletteCommand] = []
 
         commands.append(PaletteCommand(
             icon: "square.and.pencil",
             title: "New Conversation",
-            subtitle: "Start a fresh thread",
+            subtitle: nil,
             shortcut: "⌘N",
             group: "Actions",
             action: { store.createConversation() }
@@ -53,7 +49,7 @@ struct CommandPaletteView: View {
         commands.append(PaletteCommand(
             icon: "folder.badge.plus",
             title: "Add Search Resource",
-            subtitle: "Files or folders the agent can search",
+            subtitle: "Files or folders",
             shortcut: "⇧⌘O", group: "Actions",
             action: store.addSearchResourcesFromOpenPanel
         ))
@@ -64,7 +60,7 @@ struct CommandPaletteView: View {
                 subtitle: nil, shortcut: "⇧⌘C", group: "Actions",
                 action: {
                     store.copySelectedConversation()
-                    ToastCenter.shared.show("Conversation copied", icon: "doc.on.doc.fill")
+                    ToastCenter.shared.show("Copied", icon: "doc.on.doc.fill")
                 }
             ))
             commands.append(PaletteCommand(
@@ -77,16 +73,16 @@ struct CommandPaletteView: View {
         if store.preferences.apiAgentModeEnabled {
             commands.append(PaletteCommand(
                 icon: "wifi.slash",
-                title: "Switch to Local Model Mode",
-                subtitle: "Use a model installed on this Mac",
+                title: "Use Local Model Mode",
+                subtitle: nil,
                 shortcut: nil, group: "Mode",
                 action: { store.updatePreferences { $0.apiAgentModeEnabled = false } }
             ))
         } else {
             commands.append(PaletteCommand(
                 icon: "globe",
-                title: "Switch to API Agent Mode",
-                subtitle: "Use OpenRouter or OpenAI",
+                title: "Use API Agent Mode",
+                subtitle: nil,
                 shortcut: nil, group: "Mode",
                 action: { store.updatePreferences { $0.apiAgentModeEnabled = true } }
             ))
@@ -106,7 +102,7 @@ struct CommandPaletteView: View {
             commands.append(PaletteCommand(
                 icon: "bubble.left",
                 title: conversation.displayTitle,
-                subtitle: conversation.messages.last?.plainText.prefix(60).description ?? "Empty conversation",
+                subtitle: conversation.messages.last?.plainText.prefix(60).description ?? "Empty",
                 shortcut: nil, group: "Conversations",
                 action: { store.selectedItem = .conversation(conversation.id) }
             ))
@@ -133,7 +129,7 @@ struct CommandPaletteView: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
-                TextField("Type a command, model, or conversation…", text: $query)
+                TextField("Search commands, models, conversations…", text: $query)
                     .textFieldStyle(.plain)
                     .font(Typography.interface(15))
                     .focused($fieldFocused)
@@ -195,9 +191,12 @@ struct CommandPaletteView: View {
             Divider()
 
             HStack(spacing: 16) {
-                Label("↑↓ Navigate", systemImage: "arrow.up.arrow.down").font(Typography.interface(10.5))
-                Label("↩ Run", systemImage: "return").font(Typography.interface(10.5))
-                Label("Esc Close", systemImage: "escape").font(Typography.interface(10.5))
+                Text("↑↓ Navigate")
+                    .font(Typography.interface(10.5))
+                Text("↩ Run")
+                    .font(Typography.interface(10.5))
+                Text("Esc Close")
+                    .font(Typography.interface(10.5))
                 Spacer()
                 Text("\(commands.count) result\(commands.count == 1 ? "" : "s")")
                     .font(Typography.interface(10.5).monospacedDigit())
@@ -244,33 +243,33 @@ struct CommandPaletteView: View {
         let commands = filteredCommands
 
         switch event.keyCode {
-        case 125: // down
+        case 125:
             guard !commands.isEmpty else { return nil }
             selectionIndex = min(commands.count - 1, selectionIndex + 1)
             return nil
-        case 126: // up
+        case 126:
             guard !commands.isEmpty else { return nil }
             selectionIndex = max(0, selectionIndex - 1)
             return nil
-        case 121: // page down
+        case 121:
             guard !commands.isEmpty else { return nil }
             selectionIndex = min(commands.count - 1, selectionIndex + 8)
             return nil
-        case 116: // page up
+        case 116:
             guard !commands.isEmpty else { return nil }
             selectionIndex = max(0, selectionIndex - 8)
             return nil
-        case 119: // end
+        case 119:
             guard !commands.isEmpty else { return nil }
             selectionIndex = commands.count - 1
             return nil
-        case 115: // home
+        case 115:
             selectionIndex = 0
             return nil
-        case 36, 76: // return / enter
+        case 36, 76:
             runSelected()
             return nil
-        case 53: // escape
+        case 53:
             isPresented = false
             return nil
         default:
@@ -401,14 +400,12 @@ private struct CommandRow: View {
     }
 
     private var rowFill: Color {
-        if isSelected {
-            return Theme.accent.opacity(0.14)
-        }
+        if isSelected { return Theme.accent.opacity(0.14) }
         return isHovering ? Theme.hoverFill : Color.clear
     }
 }
 
-// MARK: - Local key event interceptor
+// MARK: - Key event interceptor
 
 private struct KeyEventHandlingView: NSViewRepresentable {
     let handler: (NSEvent) -> NSEvent?

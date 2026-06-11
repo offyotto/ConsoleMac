@@ -1,11 +1,6 @@
-import Foundation
+import SwiftUI
 
-/// Centralized design tokens for ConsoleMac.
-///
-/// `Theme` exposes semantic colors that adapt to light/dark mode, along with
-/// reusable layout, motion, and elevation tokens consumed across the app.
-///
-/// — Made with ❤️ by developers who believe great tools should feel alive.
+// Centralized design tokens for ConsoleMac.
 enum Theme {
 
     // MARK: Surfaces & text
@@ -21,7 +16,6 @@ enum Theme {
     static var elevatedFill: Color { Color(nsColor: .quaternaryLabelColor).opacity(0.30) }
     static var accent: Color { Color(nsColor: .controlAccentColor) }
 
-    /// Soft accent gradient for highlights, send button, etc.
     static var accentGradient: LinearGradient {
         LinearGradient(
             colors: [accent, accent.opacity(0.78)],
@@ -30,7 +24,6 @@ enum Theme {
         )
     }
 
-    /// Brand mark gradient used on the terminal icon and brand circle.
     static var brandGradient: LinearGradient {
         LinearGradient(
             colors: [Color.primary, Color.primary.opacity(0.72)],
@@ -63,31 +56,22 @@ enum Theme {
     }
 
     // MARK: Motion
-    //
-    // Optimized for older multithreaded processors:
-    // - Reduced animation complexity where possible
-    // - Shorter durations to minimize frame budget pressure
-    // - Spring damping tuned for smooth performance on Intel Macs
+    // Tuned for older Intel Macs: shorter durations, higher spring damping.
 
     enum Motion {
-        /// Snappy spring for taps and selections.
-        /// Damping increased slightly for better stability on older hardware.
+        // Snappy spring for taps and selections.
         static var snap: Animation { .spring(response: 0.28, dampingFraction: 0.82) }
-        
-        /// Smooth ease used for hover transitions.
-        /// Kept short to reduce GPU load during rapid mouse movements.
+
+        // Hover transitions — kept short to reduce GPU load.
         static var hover: Animation { .easeInOut(duration: 0.12) }
-        
-        /// Slow ambient animation for backgrounds.
-        /// Only used on idle screens; disabled automatically on low-power modes.
+
+        // Slow ambient animation for idle backgrounds.
         static var ambient: Animation { .easeInOut(duration: 1.2) }
-        
-        /// Drift used on the home greeting.
-        /// Gentle motion that won't compete with main thread work.
+
+        // Gentle drift for decorative elements.
         static var drift: Animation { .easeInOut(duration: 3.5).repeatForever(autoreverses: true) }
-        
-        /// Entrance animation for new messages.
-        /// Balanced for perceived speed without dropped frames.
+
+        // Entrance animation for new messages.
         static var entrance: Animation { .spring(response: 0.35, dampingFraction: 0.75) }
     }
 }

@@ -1,18 +1,16 @@
-# Console Personal Build
+# Personal Build
 
-> **Crafted with ❤️ — This is a personal build, made for developers who care about the details.**
+ConsoleMac is packaged as a personal macOS app, not an App Store build.
 
-Console is currently packaged as a personal macOS app, not an App Store build.
+## What this means
 
-## What This Means
-
-- The staged app is ad-hoc signed by default.
-- No App Sandbox entitlement is applied.
-- Agent file search can use normal local filesystem paths.
-- macOS privacy controls still apply. If you want Console to read protected locations without prompts, add it to Full Disk Access in System Settings.
-- API agent mode stores provider API keys in macOS Keychain, not UserDefaults.
-- OpenRouter agent mode uses `https://openrouter.ai/api/v1/chat/completions`, the `web` plugin, local function tools, and stdio MCP tools.
-- OpenAI agent mode uses the Responses API with web search and local function tools.
+- Ad-hoc signed by default
+- No App Sandbox entitlement
+- Agent file search uses normal local filesystem paths
+- macOS privacy controls still apply. For Full Disk Access without prompts, add Console to System Settings
+- API keys stored in macOS Keychain, not UserDefaults
+- OpenRouter uses `https://openrouter.ai/api/v1/chat/completions` with the `web` plugin, local function tools, and stdio MCP tools
+- OpenAI uses the Responses API with web search and local function tools
 - GitHub MCP is seeded with the official Docker server command:
 
 ```sh
@@ -21,7 +19,7 @@ docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS=all ghcr.i
 
 Set `GITHUB_PERSONAL_ACCESS_TOKEN` in your shell or Docker environment before using the server.
 
-## Local Checks
+## Local checks
 
 ```sh
 swift build

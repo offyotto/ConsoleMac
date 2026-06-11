@@ -1,58 +1,31 @@
 # Contributing to ConsoleMac
 
-> **Built with ❤️ by developers, for developers.**
-
-Welcome! If you're reading this, you're probably someone who believes great tools should feel like an extension of your thoughts — not a barrier between you and your creativity. We're glad you're here.
-
-## 🎯 Who Should Contribute?
-
-ConsoleMac is perfect for:
-
-- **Developers on older Intel Macs** who want snappy performance without Electron overhead
-- **SwiftUI enthusiasts** who care about smooth animations and thoughtful UX
-- **Privacy-conscious coders** who prefer local-first AI assistants
-- **Anyone** who's ever thought "this tool almost gets it right" and wanted to fix it themselves
-
-## 🚀 Getting Started
+## Getting started
 
 ```sh
-# Clone the repo
 git clone https://github.com/your-org/consolemac.git
 cd consolemac
-
-# Build
 swift build
-
-# Run
 ./script/build_and_run.sh
 ```
 
-## 💡 Where to Start?
+## Where to start
 
-Good first contributions:
+- Animation and performance improvements for Intel hardware
+- Accessibility
+- Bug fixes — check issues labeled `bug` or `good first issue`
+- Documentation
 
-1. **Animation polish** — Help us tune motion curves for even older hardware
-2. **Accessibility** — Make Console work better for everyone
-3. **Bug fixes** — Check issues labeled `bug` or `good first issue`
-4. **Documentation** — Help others discover the little details that make Console special
-
-## 📝 Code Style
+## Code style
 
 - Swift 6.1 conventions
-- Prefer `@MainActor` for UI state
+- Use `@MainActor` for UI state
 - Keep animations subtle and performant
-- Comment your "why", not just your "what"
+- Comment the why, not the what
 
-## ❤️ A Note on Tone
+## Pull requests
 
-This project was born from the belief that coding tools should feel *human*. When reviewing code or discussing features, remember:
-
-- Every contributor is volunteering their time and expertise
-- Small details matter — the 50ms animation tweak, the perfectly-timed tooltip
-- We're building something we're proud to show our friends
-
-If ConsoleMac helps you build something amazing, that's the real success. Happy coding!
-
----
-
-*Made with love by the ConsoleMac community.*
+When submitting:
+- Describe what changed and why
+- Note any trade-offs
+- For performance changes, include before/after measurements if possible

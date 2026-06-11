@@ -1,13 +1,17 @@
-```
+.DS_Store
+
 # Build artifacts
 .build/
+dist/
 DerivedData/
 *.o
 *.obj
+*.app/
+*.zip
+*.dSYM/
 
 # Dependencies
 Packages/
-Package.resolved
 
 # Logs and temp files
 *.log
@@ -16,14 +20,12 @@ Package.resolved
 # Environment
 .env
 .env.local
+.env.*
 *.env.*
+Config/*.local.*
 
 # Editors
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# macOS
-.DS_Store
-```
